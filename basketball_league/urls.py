@@ -1,7 +1,6 @@
 from django.contrib import admin
 from django.urls import path, include
-from league_api.views import (ScoreboardView, PlayerDetailView, TeamListView, PlayerListView, TeamDetailView, SiteStatisticsView)
-
+from league_api.views import (ScoreboardView, PlayerDetailView, TeamListView, PlayerListView, TeamDetailView, SiteStatisticsView, RegisterCaochView, RegisterPlayerView, CreateGameView, CreateTeamView)
 
 custom_pool_urls = [
     path('scoreboard/', ScoreboardView.as_view(), name='scoreboard'),
@@ -11,6 +10,10 @@ custom_pool_urls = [
     path('teams/<int:pk>/', TeamDetailView.as_view(), name='team_detail'),
     path('statistics/', SiteStatisticsView.as_view(), name='site_statistics'),
 
+    path('register/coach/', RegisterCaochView.as_view(), name='register_coach'),
+    path('register/player/', RegisterPlayerView.as_view(), name='register_player'),
+    path('create/game/', CreateGameView.as_view(), name='create_game'),
+    path('create/team/', CreateTeamView.as_view(), name='create_team'),
 ]
 
 urlpatterns = [
