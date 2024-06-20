@@ -34,3 +34,11 @@ class Game(models.Model):
     date = models.DateTimeField()
     winner = models.ForeignKey(Team, related_name='wins', on_delete=models.CASCADE,null=True)
     
+class LoginActivity(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    login_time = models.DateTimeField(auto_now_add=True)
+    logout_time = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self):
+        return f'{self.user.email} - {self.login_time}'
+    
