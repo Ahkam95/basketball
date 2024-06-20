@@ -6,6 +6,7 @@ Matific Assignment
 ```bash
 pip install -r requirements.txt 
 ```
+
 2. Create a PostgreSQL database
 Create a postgres database with the name basketball_league_db
 
@@ -13,5 +14,7 @@ Create a postgres database with the name basketball_league_db
 Update the .env file with database user_name and password
 
 4. Apply database migrations
+```bash
 python manage.py makemigrations
 python manage.py migrate
+```
