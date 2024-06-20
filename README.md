@@ -3,8 +3,9 @@ Matific Assignment
 
 ## Project setup steps
 1. Install dependencies
+```bash
 pip install -r requirements.txt 
-
+```
 2. Create a PostgreSQL database
 Create a postgres database with the name basketball_league_db
 
