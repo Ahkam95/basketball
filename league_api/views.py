@@ -2,11 +2,36 @@ from django.shortcuts import render, get_object_or_404
 from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.authtoken.views import ObtainAuthToken
+from rest_framework.authtoken.models import Token
 from django.db import IntegrityError
 from django.utils.timezone import now
 from .serializers import GameSerializer, PlayerSerializer, TeamSerializer, RegisterUserSerializer, InitialTeamSerializer
 from .models import Game, Team, Player, User
-from .services import get_site_statistics, calculate_90th_percentile
+from .services import get_site_statistics, calculate_90th_percentile, record_logout_and_calculate_time_spent, update_login_count_and_activity
+
+# user login with django auth
+class CustomAuthToken(ObtainAuthToken):
+    def post(self, request, *args, **kwargs):
+        response = super().post(request, *args, **kwargs)
+        token = Token.objects.get(key=response.data['token'])
+        update_login_count_and_activity(token.user)
+        return response
+
+# user logout and past token will be invalid
+class LogoutView(APIView):
+    def post(self, request):
+        try:
+            token = Token.objects.get(user=request.user)
+            record_logout_and_calculate_time_spent(request.user)
+            token.delete()
+            return Response(status=status.HTTP_200_OK)
+        except:
+            return Response(status=status.HTTP_400_BAD_REQUEST)
+
+class CurrentUserView(APIView):
+    def get(self, request):
+        return Response({"id":request.user.id, "username":request.user.username, "email":request.user.email, "role":request.user.role},status=status.HTTP_200_OK)
 
 # all users can see scoreboard data
 class ScoreboardView(generics.ListAPIView):

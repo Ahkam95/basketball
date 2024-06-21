@@ -25,3 +25,18 @@ def calculate_90th_percentile(scores):
     except:
         return None
     return None
+
+def update_login_count_and_activity(user):
+    user.login_count += 1
+    user.save()
+    LoginActivity.objects.create(user=user, login_time=now())
+
+def record_logout_and_calculate_time_spent(user):
+    login_activity = LoginActivity.objects.filter(user=user, logout_time__isnull=True).first()
+    if login_activity:
+        login_activity.logout_time = now()
+        login_activity.save()
+        session_duration = login_activity.logout_time - login_activity.login_time
+        user.total_time_spent += session_duration
+        user.save()
+    return login_activity

@@ -12,13 +12,11 @@ class RegisterUserSerializer(serializers.ModelSerializer):
         fields = ['id', 'username', 'email', 'role']
 
 class WinnerSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = Team
         fields = ['id', 'name']
 
 class PlayerSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = Player
         fields = ['id', 'name', 'height', 'average_score', 'games_played', 'team']
