@@ -9,6 +9,8 @@ from django.utils.timezone import now
 from .serializers import GameSerializer, PlayerSerializer, TeamSerializer, RegisterUserSerializer, InitialTeamSerializer
 from .models import Game, Team, Player, User
 from .services import get_site_statistics, calculate_90th_percentile, record_logout_and_calculate_time_spent, update_login_count_and_activity
+from .permissions import IsAuthenticatedOr401, IsAdmin, IsCoach, IsPlayer
+
 
 # user login with django auth
 class CustomAuthToken(ObtainAuthToken):
@@ -20,6 +22,9 @@ class CustomAuthToken(ObtainAuthToken):
 
 # user logout and past token will be invalid
 class LogoutView(APIView):
+
+    permission_classes = [IsAuthenticatedOr401]
+
     def post(self, request):
         try:
             token = Token.objects.get(user=request.user)
@@ -30,24 +35,36 @@ class LogoutView(APIView):
             return Response(status=status.HTTP_400_BAD_REQUEST)
 
 class CurrentUserView(APIView):
+
+    permission_classes = [IsAuthenticatedOr401]
+
     def get(self, request):
         return Response({"id":request.user.id, "username":request.user.username, "email":request.user.email, "role":request.user.role},status=status.HTTP_200_OK)
 
 # all users can see scoreboard data
 class ScoreboardView(generics.ListAPIView):
+    
+    permission_classes = [IsAuthenticatedOr401]
     serializer_class = GameSerializer
+
     def get_queryset(self):
         return Game.objects.all()
 
 # get details of given player
 class PlayerDetailView(generics.RetrieveAPIView):
+
+    permission_classes = [IsAuthenticatedOr401, IsCoach]
     serializer_class = PlayerSerializer
+
     def get_queryset(self):
         return Player.objects.filter(id=self.kwargs['pk'])
     
 # get details of players
 class PlayerListView(generics.ListAPIView):
+
+    permission_classes = [IsAuthenticatedOr401, IsCoach]
     serializer_class = PlayerSerializer
+
     def get_queryset(self):
         # team = Team.objects.get(id=self.kwargs['pk'])
         team = get_object_or_404(Team, id=self.kwargs['pk'])
@@ -72,18 +89,27 @@ class PlayerListView(generics.ListAPIView):
 
 # get list of team
 class TeamListView(generics.ListAPIView):
+
+    permission_classes = [IsAuthenticatedOr401, IsAdmin]
+
     queryset = Team.objects.all()
     serializer_class = TeamSerializer
 
 # get details of given team
 class TeamDetailView(generics.RetrieveAPIView):
+
+    permission_classes = [IsAuthenticatedOr401, IsCoach]
     serializer_class = TeamSerializer
+
     def get_queryset(self):
         team = Team.objects.filter(id=self.kwargs['pk'])
         return team
 
 # admin can view details users
 class SiteStatisticsView(APIView):
+
+    permission_classes = [IsAuthenticatedOr401, IsAdmin]
+
     def get(self, request):
         data = get_site_statistics()
         return Response(data)
@@ -91,7 +117,10 @@ class SiteStatisticsView(APIView):
 ## Post Calls
 # register coach by admin
 class RegisterCaochView(APIView):
+
+    permission_classes = [IsAuthenticatedOr401, IsAdmin]
     serializer_class = RegisterUserSerializer
+
     def post(self, request, *args, **kwargs):
         try:
             coach = User.objects.create_user(email=request.data['email'], password='coach@123',
@@ -112,6 +141,8 @@ class RegisterCaochView(APIView):
     
 # register players by admin
 class RegisterPlayerView(APIView):
+
+    permission_classes = [IsAuthenticatedOr401, IsAdmin]
     serializer_class = RegisterUserSerializer
 
     def post(self, request, *args, **kwargs):
@@ -134,6 +165,8 @@ class RegisterPlayerView(APIView):
 
 # coach create teams
 class CreateTeamView(APIView):
+
+    permission_classes = [IsAuthenticatedOr401, IsCoach]
     serializer_class = InitialTeamSerializer
 
     def post(self, request, *args, **kwargs):
@@ -150,6 +183,9 @@ class CreateTeamView(APIView):
 
 # players can join team
 class JoinTeamView(APIView):
+
+    permission_classes = [IsAuthenticatedOr401, IsPlayer]
+
     def post(self, request, *args, **kwargs):
         try:
             team = Team.objects.get(id=request.data['team_id'])
@@ -177,6 +213,8 @@ class JoinTeamView(APIView):
 
 # admin can crete new games
 class CreateGameView(APIView):
+
+    permission_classes = [IsAuthenticatedOr401, IsAdmin]
     serializer_class = GameSerializer
 
     def post(self, request, *args, **kwargs):
@@ -199,6 +237,8 @@ class CreateGameView(APIView):
     
 # update the players played matches count
 class UpdateCountGamesView(APIView):
+
+    permission_classes = [IsAuthenticatedOr401, IsCoach]
     serializer_class = PlayerSerializer
 
     def put(self, request, *args, **kwargs):
@@ -216,6 +256,8 @@ class UpdateCountGamesView(APIView):
 
 # update the team current score
 class UpdateTeamScoreView(APIView):
+
+    permission_classes = [IsAuthenticatedOr401, IsAdmin]
     serializer_class = GameSerializer
 
     def put(self, request, *args, **kwargs):
@@ -237,6 +279,8 @@ class UpdateTeamScoreView(APIView):
 
 #  update the team average score by admin
 class UpdateAVGTeamScoreView(APIView):
+
+    permission_classes = [IsAuthenticatedOr401, IsAdmin]
     serializer_class = TeamSerializer
 
     def put(self, request, *args, **kwargs):
@@ -256,6 +300,8 @@ class UpdateAVGTeamScoreView(APIView):
 
 #  update the player average score
 class UpdateAVGPlayerScoreView(APIView):
+
+    permission_classes = [IsAuthenticatedOr401, IsAdmin]
     serializer_class = PlayerSerializer
 
     def put(self, request, *args, **kwargs):
@@ -276,6 +322,9 @@ class UpdateAVGPlayerScoreView(APIView):
 
 #  remove players from team
 class RemovePlayerView(APIView):
+
+    permission_classes = [IsAuthenticatedOr401, IsCoach]
+    
     def delete(self, request, pk, *args, **kwargs):
         player = get_object_or_404(Player, pk=pk)
         team = player.team
