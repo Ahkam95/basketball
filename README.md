@@ -18,3 +18,8 @@ Update the .env file with database user_name and password
 python manage.py makemigrations
 python manage.py migrate
 ```
+
+5. Run the development server
+```bash
+python manage.py runserver
+```
