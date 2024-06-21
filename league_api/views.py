@@ -4,12 +4,14 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.authtoken.views import ObtainAuthToken
 from rest_framework.authtoken.models import Token
+from rest_framework.exceptions import PermissionDenied
 from django.db import IntegrityError
 from django.utils.timezone import now
 from .serializers import GameSerializer, PlayerSerializer, TeamSerializer, RegisterUserSerializer, InitialTeamSerializer
 from .models import Game, Team, Player, User
 from .services import get_site_statistics, calculate_90th_percentile, record_logout_and_calculate_time_spent, update_login_count_and_activity
-from .permissions import IsAuthenticatedOr401, IsAdmin, IsCoach, IsPlayer
+from .permissions import IsAuthenticatedOr401, IsAdmin, IsCoach, IsPlayer, IsAdminOrIsCoach
+from .constants import USERS
 
 
 # user login with django auth
@@ -30,7 +32,7 @@ class LogoutView(APIView):
             token = Token.objects.get(user=request.user)
             record_logout_and_calculate_time_spent(request.user)
             token.delete()
-            return Response(status=status.HTTP_200_OK)
+            return Response({'detail': 'User logged out successfully.'}, status=status.HTTP_200_OK)
         except:
             return Response(status=status.HTTP_400_BAD_REQUEST)
 
@@ -53,7 +55,7 @@ class ScoreboardView(generics.ListAPIView):
 # get details of given player
 class PlayerDetailView(generics.RetrieveAPIView):
 
-    permission_classes = [IsAuthenticatedOr401, IsCoach]
+    permission_classes = [IsAuthenticatedOr401]
     serializer_class = PlayerSerializer
 
     def get_queryset(self):
@@ -66,13 +68,17 @@ class PlayerListView(generics.ListAPIView):
     serializer_class = PlayerSerializer
 
     def get_queryset(self):
-        # team = Team.objects.get(id=self.kwargs['pk'])
+        user = self.request.user
+        team_id = self.kwargs.get('pk')
+        if user.role == USERS['COACH'] and hasattr(user, 'team'):
+            if user.team.id != team_id:
+                raise PermissionDenied("You do not have permission to view this team's players.")
+            
         team = get_object_or_404(Team, id=self.kwargs['pk'])
-        is_percentile_90 = self.request.query_params.get('is_percentile_90', 'False')
-        print(is_percentile_90)
+        is_percentile_90 = self.request.query_params.get('is_percentile_90', 'true')
         players = team.players.all()
 
-        if is_percentile_90 == 'False':
+        if is_percentile_90.lower() == 'false':
             return players
 
         # Collect individual average scores of all players in the team
@@ -98,7 +104,7 @@ class TeamListView(generics.ListAPIView):
 # get details of given team
 class TeamDetailView(generics.RetrieveAPIView):
 
-    permission_classes = [IsAuthenticatedOr401, IsCoach]
+    permission_classes = [IsAuthenticatedOr401, IsAdminOrIsCoach]
     serializer_class = TeamSerializer
 
     def get_queryset(self):
@@ -139,7 +145,7 @@ class RegisterCaochView(APIView):
 
         return Response(coach_serializer.data, status=status.HTTP_201_CREATED)
     
-# register players by admin
+# register players by an admin
 class RegisterPlayerView(APIView):
 
     permission_classes = [IsAuthenticatedOr401, IsAdmin]
@@ -244,6 +250,8 @@ class UpdateCountGamesView(APIView):
     def put(self, request, *args, **kwargs):
         try:
             player = Player.objects.get(id=request.data['player_id'])
+            if player.team.coach != request.user:
+                return Response({'detail': 'You do not have permission to update this player.'}, status=status.HTTP_403_FORBIDDEN)
             player.games_played += 1
             player.save()
 
