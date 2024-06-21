@@ -19,7 +19,12 @@ python manage.py makemigrations
 python manage.py migrate
 ```
 
-5. Run the development server
+5. Generate mock data 
+```bash
+python manage.py generate_fake_data
+```
+
+6. Run the development server
 ```bash
 python manage.py runserver
 ```
