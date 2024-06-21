@@ -1,6 +1,7 @@
 from rest_framework import permissions
 from rest_framework.exceptions import NotAuthenticated
 from rest_framework.permissions import IsAuthenticated
+from .constants import USERS
 
 class IsAdmin(permissions.BasePermission):
     """
@@ -8,7 +9,7 @@ class IsAdmin(permissions.BasePermission):
     """
     def has_permission(self, request, view):
         # Check if the current user is marked as a admin
-        return request.user and request.user.role == 'admin'
+        return request.user and request.user.role == USERS['ADMIN']
     
 class IsCoach(permissions.BasePermission):
     """
@@ -16,7 +17,7 @@ class IsCoach(permissions.BasePermission):
     """
     def has_permission(self, request, view):
         # Check if the current user is marked as a host
-        return request.user and request.user.role == 'coach'
+        return request.user and request.user.role == USERS['COACH']
 
 class IsPlayer(permissions.BasePermission):
     """
@@ -24,7 +25,7 @@ class IsPlayer(permissions.BasePermission):
     """
     def has_permission(self, request, view):
         # Check if the current user is marked as a player
-        return request.user and request.user.role == 'player'
+        return request.user and request.user.role == USERS['PLAYER']
 
 class IsAuthenticatedOr401(IsAuthenticated):
     def has_permission(self, request, view):
@@ -33,3 +34,18 @@ class IsAuthenticatedOr401(IsAuthenticated):
         if not is_authenticated:
             raise NotAuthenticated()
         return True
+
+class IsAdminOrIsCoach(permissions.BasePermission):
+    def has_permission(self, request, view):
+        # Check if the user is authenticated
+        return request.user.is_authenticated
+    
+    def has_object_permission(self, request, view, obj):
+        # Admins can access any team
+        if request.user.role == USERS['ADMIN']:
+            return True
+        # Coaches can only access their own team
+        if request.user.role == USERS['COACH'] and obj.coach == request.user:
+            return True
+        return False
+    
