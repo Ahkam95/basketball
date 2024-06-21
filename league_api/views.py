@@ -172,3 +172,93 @@ class CreateGameView(APIView):
 
         return Response(serializer.data,status=status.HTTP_201_CREATED)
     
+# update the players played matches count
+class UpdateCountGamesView(APIView):
+    serializer_class = PlayerSerializer
+
+    def put(self, request, *args, **kwargs):
+        try:
+            player = Player.objects.get(id=request.data['player_id'])
+            player.games_played += 1
+            player.save()
+
+            player_serializer = self.serializer_class(player)
+
+        except IntegrityError as e:
+            return Response({'detail': 'An error occurred.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(player_serializer.data,status=status.HTTP_200_OK)
+
+# update the team current score
+class UpdateTeamScoreView(APIView):
+    serializer_class = GameSerializer
+
+    def put(self, request, *args, **kwargs):
+        try:
+            game = Game.objects.get(id=request.data['game_id'])
+
+            if request.data['team1_score']:
+                game.team1_score = request.data['team1_score']
+            if request.data['team2_score']:
+                game.team2_score = request.data['team2_score']
+
+            game.save()
+            game_serializer = self.serializer_class(game)
+
+        except IntegrityError as e:
+            return Response({'detail': 'An error occurred.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(game_serializer.data,status=status.HTTP_200_OK)
+
+#  update the team average score by admin
+class UpdateAVGTeamScoreView(APIView):
+    serializer_class = TeamSerializer
+
+    def put(self, request, *args, **kwargs):
+        try:
+            team = Team.objects.get(id=request.data['team_id'])
+
+            if request.data['average_score']:
+                team.average_score = request.data['average_score']
+
+            team.save()
+            team_serializer = self.serializer_class(team)
+
+        except :
+            return Response({'detail': 'An error occurred.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(team_serializer.data,status=status.HTTP_200_OK)
+
+#  update the player average score
+class UpdateAVGPlayerScoreView(APIView):
+    serializer_class = PlayerSerializer
+
+    def put(self, request, *args, **kwargs):
+        try:
+
+            player = Player.objects.get(id=request.data['player_id'])
+
+            if request.data['average_score']:
+                player.average_score = request.data['average_score']
+
+            player.save()
+            player_serializer = self.serializer_class(player)
+
+        except :
+            return Response({'detail': 'An error occurred.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(player_serializer.data, status=status.HTTP_200_OK)
+
+#  remove players from team
+class RemovePlayerView(APIView):
+    def delete(self, request, pk, *args, **kwargs):
+        player = get_object_or_404(Player, pk=pk)
+        team = player.team
+
+        # Ensure that the requesting user is the coach of the team
+        if request.user != team.coach:
+            return Response({'detail': 'Only team coach can remove a player'},
+                            status=status.HTTP_403_FORBIDDEN)
+
+        player.delete()
+        return Response({'detail': 'Player deleted successfully.'}, status=status.HTTP_204_NO_CONTENT)
