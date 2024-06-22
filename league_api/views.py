@@ -11,7 +11,7 @@ from .serializers import GameSerializer, PlayerSerializer, TeamSerializer, Regis
 from .models import Game, Team, Player, User
 from .services import get_site_statistics, calculate_90th_percentile, record_logout_and_calculate_time_spent, update_login_count_and_activity
 from .permissions import IsAuthenticatedOr401, IsAdmin, IsCoach, IsPlayer, IsAdminOrIsCoach
-from .constants import USERS
+from .constants import USERS, ERROR_CODES
 
 
 # user login with django auth
@@ -138,10 +138,10 @@ class RegisterCaochView(APIView):
             error_message = str(e)
             if 'unique constraint' in error_message:
                 if 'email' in error_message:
-                    return Response({'detail': 'Email is already in use.'}, status=status.HTTP_400_BAD_REQUEST)
+                    return Response({'detail': 'Email is already in use.', 'error_code': ERROR_CODES['COACH_EMAIL_IS_ALREADY_IN_USE']}, status=status.HTTP_400_BAD_REQUEST)
                 if 'username' in error_message:
-                    return Response({'detail': 'Username is already in use.'}, status=status.HTTP_400_BAD_REQUEST)
-            return Response({'detail': 'An error occurred.'}, status=status.HTTP_400_BAD_REQUEST)
+                    return Response({'detail': 'Username is already in use.', 'error_code': ERROR_CODES['COACH_USERNAME_IS_ALREADY_IN_USE']}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'detail': 'Failed to register Coach.', 'error_code': ERROR_CODES['FAILED_TO_REGISTER_COACH']}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         return Response(coach_serializer.data, status=status.HTTP_201_CREATED)
     
@@ -162,10 +162,10 @@ class RegisterPlayerView(APIView):
             error_message = str(e)
             if 'unique constraint' in error_message:
                 if 'email' in error_message:
-                    return Response({'detail': 'Email is already in use.'}, status=status.HTTP_400_BAD_REQUEST)
+                    return Response({'detail': 'Email is already in use.', 'error_code': ERROR_CODES['PLAYER_EMAIL_IS_ALREADY_IN_USE']}, status=status.HTTP_400_BAD_REQUEST)
                 if 'username' in error_message:
-                    return Response({'detail': 'Username is already in use.'}, status=status.HTTP_400_BAD_REQUEST)
-            return Response({'detail': 'An error occurred.'}, status=status.HTTP_400_BAD_REQUEST)
+                    return Response({'detail': 'Username is already in use.', 'error_code': ERROR_CODES['PLAYER_USERNAME_IS_ALREADY_IN_USE']}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'detail': 'Failed to register Player.', 'error_code': ERROR_CODES['FAILED_TO_REGISTER_PLAYER']}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         return Response(player_serializer.data, status=status.HTTP_201_CREATED)
 
@@ -182,8 +182,8 @@ class CreateTeamView(APIView):
         except IntegrityError as e:
             error_message = str(e)
             if 'unique constraint' in error_message:
-                    return Response({'detail': 'Coach already has a team.'}, status=status.HTTP_400_BAD_REQUEST)
-            return Response({'detail': 'An error occurred.'}, status=status.HTTP_400_BAD_REQUEST)
+                    return Response({'detail': 'Coach already has a team.', 'error_code': ERROR_CODES['COACH_ALREADY_HAS_A_TEAM']}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'detail': 'Failed to Create a Team.', 'error_code': ERROR_CODES['FAILED_TO_CREATE_TEAM']}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         return Response(team_serializer.data, status=status.HTTP_201_CREATED)
 
@@ -198,7 +198,7 @@ class JoinTeamView(APIView):
 
             # Check if the team already has 10 players
             if team.players.count() >= 10:
-                return Response({'detail': 'This team already has 10 players.'}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({'detail': 'This team already has 10 players.', 'error_code': ERROR_CODES['INVALID_PLAYER_COUNT']}, status=status.HTTP_400_BAD_REQUEST)
 
             Player.objects.create(
                 name=request.data['player_name'],
@@ -212,8 +212,8 @@ class JoinTeamView(APIView):
         except IntegrityError as e:
             error_message = str(e)
             if 'unique constraint' in error_message:
-                    return Response({'detail': 'Player already has a team.'}, status=status.HTTP_400_BAD_REQUEST)
-            return Response({'detail': 'An error occurred.'}, status=status.HTTP_400_BAD_REQUEST)
+                    return Response({'detail': 'Player already has a team.', 'error_code': ERROR_CODES['PLAYER_ALREADY_ASSIGNED']}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'detail': 'Failed to Join a Team.', 'error_code': ERROR_CODES['FAILED_TO_JOIN']}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         return Response(status=status.HTTP_201_CREATED)
 
@@ -237,7 +237,7 @@ class CreateGameView(APIView):
             serializer = self.serializer_class(game)
 
         except IntegrityError as e:
-            return Response({'detail': 'An error occurred.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'detail': 'Failed to create Game.', 'error_code': ERROR_CODES['FAILED_TO_CREATE_GAME']}, status=status.HTTP_400_BAD_REQUEST)
 
         return Response(serializer.data,status=status.HTTP_201_CREATED)
     
@@ -251,14 +251,14 @@ class UpdateCountGamesView(APIView):
         try:
             player = Player.objects.get(id=request.data['player_id'])
             if player.team.coach != request.user:
-                return Response({'detail': 'You do not have permission to update this player.'}, status=status.HTTP_403_FORBIDDEN)
+                return Response({'detail': 'You do not have permission to update this player.', 'error_code': ERROR_CODES['INVALID_USER_UPDATE_PERMISSION']}, status=status.HTTP_403_FORBIDDEN)
             player.games_played += 1
             player.save()
 
             player_serializer = self.serializer_class(player)
 
         except IntegrityError as e:
-            return Response({'detail': 'An error occurred.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'detail': 'Failed to update played game count.', 'error_code': ERROR_CODES['FAILED_TO_UPDATE_GAME_COUNT']}, status=status.HTTP_400_BAD_REQUEST)
 
         return Response(player_serializer.data,status=status.HTTP_200_OK)
 
@@ -281,7 +281,7 @@ class UpdateTeamScoreView(APIView):
             game_serializer = self.serializer_class(game)
 
         except IntegrityError as e:
-            return Response({'detail': 'An error occurred.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'detail': 'Failed to update Team Score.', 'error_code': ERROR_CODES['FAILED_TO_UPDATE_TEAM_SCORE']}, status=status.HTTP_400_BAD_REQUEST)
 
         return Response(game_serializer.data,status=status.HTTP_200_OK)
 
@@ -302,7 +302,7 @@ class UpdateAVGTeamScoreView(APIView):
             team_serializer = self.serializer_class(team)
 
         except :
-            return Response({'detail': 'An error occurred.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'detail': 'Failed to update Average Team Score.', 'error_code': ERROR_CODES['FAILED_TO_UPDATE_AVG_TEAM_SCORE']}, status=status.HTTP_400_BAD_REQUEST)
 
         return Response(team_serializer.data,status=status.HTTP_200_OK)
 
@@ -324,7 +324,7 @@ class UpdateAVGPlayerScoreView(APIView):
             player_serializer = self.serializer_class(player)
 
         except :
-            return Response({'detail': 'An error occurred.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'detail': 'Failed to update AVG player score.', 'error_code': ERROR_CODES['FAILED_TO_UPDATE_AVG_PLAYER_SCORE']}, status=status.HTTP_400_BAD_REQUEST)
 
         return Response(player_serializer.data, status=status.HTTP_200_OK)
 
@@ -339,7 +339,7 @@ class RemovePlayerView(APIView):
 
         # Ensure that the requesting user is the coach of the team
         if request.user != team.coach:
-            return Response({'detail': 'Only team coach can remove a player'},
+            return Response({'detail': 'Only team coach can remove a player', 'error_code': ERROR_CODES['FAILED_TO_REMOVE_PLAYER']},
                             status=status.HTTP_403_FORBIDDEN)
 
         player.delete()
